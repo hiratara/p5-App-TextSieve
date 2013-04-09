@@ -37,10 +37,11 @@ sub run {
     my $self = shift;
     my %fibres;
     my $skipped = 0;
+    my $last_log = 0;
     my $in = $self->{in};
     LOOP: while (my $line = <$in>) {
         my $time = $self->{time_parser}->($line);
-        print {$self->{out}} "\r" if $skipped;
+        print {$self->{out}} "\r", (' ' x length $last_log), "\r" if $skipped;
         for my $pat (@{$self->{patterns}}) {
             if ($line =~ $pat->{regex}) {
                 my $name = $pat->{name};
@@ -57,7 +58,8 @@ sub run {
                     $self->print_log($line, delete $fibres{$name});
                 } else {
                     $skipped++;
-                    print {$self->{out}} "skipped $skipped lines";
+                    $last_log = "skipped $skipped lines";
+                    print {$self->{out}} $last_log;
                 }
 
                 next LOOP;
