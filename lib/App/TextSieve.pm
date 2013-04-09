@@ -11,6 +11,7 @@ sub new {
         in => \*STDIN,
         out => \*STDOUT,
         patterns => [],
+        time_parser => sub { time },
         %params,
     }, $class;
 
@@ -26,7 +27,8 @@ sub new {
 
 sub print_log {
     my ($self, $line, $fibre) = @_;
-    my $duration = time - $fibre->{start_time};
+    my $time = $self->{time_parser}->($line);
+    my $duration = $time - $fibre->{start_time};
     $line =~ s/(\r?\n)$//;
     print {$self->{out}} $line, "($fibre->{count} times par $duration sec)", $1;
 }
@@ -37,15 +39,16 @@ sub run {
     my $skipped = 0;
     my $in = $self->{in};
     LOOP: while (my $line = <$in>) {
+        my $time = $self->{time_parser}->($line);
         print "\r" if $skipped;
         for my $pat (@{$self->{patterns}}) {
             if ($line =~ $pat->{regex}) {
                 my $name = $pat->{name};
                 my $fibre = $fibres{$name} //= {
-                    count => 0, start_time => time,
+                    count => 0, start_time => $time,
                 };
                 $fibre->{count}++;
-                my $duration = time - $fibre->{start_time};
+                my $duration = $time - $fibre->{start_time};
                 if (
                     $pat->{max} && $fibre->{count} >= $pat->{max} ||
                     $pat->{duration} && $duration >= $pat->{duration}
