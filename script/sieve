@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+sub print_log ($$) {
+    my ($line, $fibre) = @_;
+    my $duration = time - $fibre->{start_time};
+    $line =~ s/(\r?\n)$//;
+    print $line, "($fibre->{count} times par $duration sec)", $1;
+}
+
+my @patterns = (
+    {
+        name => "a_flood_of_warns",
+        regex => qr/Not found ID=\d+. This program may be broken!/,
+        duration => 120,
+        max => 100,
+    },
+);
+
+$|++;
+my %fibres;
+my $skipped = 0;
+LOOP: while (my $line = <>) {
+    print "\r" if $skipped;
+    for my $pat (@patterns) {
+        if ($line =~ $pat->{regex}) {
+            my $name = $pat->{name};
+            my $fibre = $fibres{$name} //= {
+                count => 0, start_time => time,
+            };
+            $fibre->{count}++;
+            my $duration = time - $fibre->{start_time};
+            if (
+                $pat->{max} && $fibre->{count} >= $pat->{max} ||
+                $pat->{duration} && $duration >= $pat->{duration}
+            ) {
+                $skipped = 0;
+                print_log $line, delete $fibres{$name};
+            } else {
+                $skipped++;
+                print "skipped $skipped lines";
+            }
+
+            next LOOP;
+        }
+    }
+    $skipped = 0;
+    print $line;
+}
