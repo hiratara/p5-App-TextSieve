@@ -18,7 +18,7 @@ sub new {
     {
         # Disable buffering
         my $orig_fh = select $self->{out};
-        local $| = 1;
+        $| = 1;
         select $orig_fh;
     }
 
