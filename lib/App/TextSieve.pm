@@ -2,18 +2,19 @@ package App::TextSieve;
 use 5.008_001;
 use strict;
 use warnings;
+use App::TextSieve::Tty;
 
 our $VERSION = '0.01';
 
 sub new {
     my ($class, %params) = @_;
-    my $self = bless {
+    my $self = {
         in => \*STDIN,
         out => \*STDOUT,
         patterns => [],
         time_parser => sub { time },
         %params,
-    }, $class;
+    };
 
     {
         # Disable buffering
@@ -22,7 +23,8 @@ sub new {
         select $orig_fh;
     }
 
-    $self;
+    $class = __PACKAGE__ . "::Tty" if -t $self->{out};
+    bless $self, $class;
 }
 
 sub print_log {
@@ -33,15 +35,16 @@ sub print_log {
     print {$self->{out}} $line, "($fibre->{count} times par $duration sec)", $1;
 }
 
+sub disp_status {}
+
 sub run {
     my $self = shift;
     my %fibres;
     my $skipped = 0;
-    my $last_log = 0;
     my $in = $self->{in};
     LOOP: while (my $line = <$in>) {
         my $time = $self->{time_parser}->($line);
-        print {$self->{out}} "\r", (' ' x length $last_log), "\r" if $skipped;
+        $self->disp_status("");
         for my $pat (@{$self->{patterns}}) {
             if ($line =~ $pat->{regex}) {
                 my $name = $pat->{name};
@@ -58,8 +61,7 @@ sub run {
                     $self->print_log($line, delete $fibres{$name});
                 } else {
                     $skipped++;
-                    $last_log = "skipped $skipped lines";
-                    print {$self->{out}} $last_log;
+                    $self->disp_status("skipped $skipped lines");
                 }
 
                 next LOOP;
@@ -68,6 +70,7 @@ sub run {
         $skipped = 0;
         print {$self->{out}} $line;
     }
+    $self->disp_status("");
 }
 
 1;
