@@ -40,7 +40,7 @@ sub run {
     my $in = $self->{in};
     LOOP: while (my $line = <$in>) {
         my $time = $self->{time_parser}->($line);
-        print "\r" if $skipped;
+        print {$self->{out}} "\r" if $skipped;
         for my $pat (@{$self->{patterns}}) {
             if ($line =~ $pat->{regex}) {
                 my $name = $pat->{name};
